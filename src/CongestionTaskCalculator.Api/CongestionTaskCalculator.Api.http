@@ -1,0 +1,6 @@
+@CongestionTaskCalculator.Api_HostAddress = http://localhost:5262
+
+GET {{CongestionTaskCalculator.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
