@@ -1,4 +1,6 @@
-using Serilog;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,9 +12,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.Configure<TaxOptions>(builder.Configuration.GetSection("TaxOption"));
+
+builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddSingleton<ITaxCalculator, GothenburgTaxCalculator>();
+
 var app = builder.Build();
 
-
+using (var scope = app.Services.CreateScope())
+{
+    await scope.ServiceProvider.MigrationAndSeedAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -25,12 +36,35 @@ app.UseHttpsRedirection();
 
 #region minimal Apis
 
-app.MapPost("/tax/calculate", (CalculateTaxRequest req) =>
+app.MapPost("/tax/calculate", async (
+    CalculateTaxRequest request,
+    IRulesProvider rulesProvider,
+    ITaxCalculator taxCalculator,
+    IOptionsSnapshot<TaxOptions> taxOptions,
+    CancellationToken cancellationToken) =>
 {
-    return Results.Ok(new { total = 0, windows = Array.Empty<object>(), capped = false });
+    var cityCode = string.IsNullOrWhiteSpace(request.City) ? taxOptions.Value.DefaultCityCode : request.City;
+    var rules = await rulesProvider.GetRulesAsync(cityCode, cancellationToken);
+    if (rules is null) return Results.NotFound($"City '{cityCode}' not found.");
+
+
+    if (!Enum.TryParse<VehicleType>(request.VehicleType, true, out var vehicleType))
+        return Results.BadRequest("Unknown vehicle type.");
+
+
+    var total = taxCalculator.CalculateDailyTax(
+        vehicleType,
+        request.DateTimes ?? Array.Empty<DateTime>(),
+        rules.City,
+        rules.TollBands,
+        rules.Holidays);
+
+    return Results.Ok(new { total, capped = total >= rules.City.DailyCap });
 })
 .WithName("CalculateTax")
 .Produces(StatusCodes.Status200OK);
+
+app.MapGet("/", () => Results.Ok("API is OK. Use /swagger"));
 
 #endregion
 

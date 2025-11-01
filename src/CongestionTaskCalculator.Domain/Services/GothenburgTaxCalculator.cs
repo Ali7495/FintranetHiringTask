@@ -15,13 +15,11 @@ public sealed class GothenburgTaxCalculator : ITaxCalculator
 
         orderedPasses = orderedPasses.Where(p => DateOnly.FromDateTime(p) == day).ToList();
 
-        if(IsTollFreeDate(day, holidays2013, includesDayBeforeHolidayRule, citySettings.JulyExempt)) return 0;
+        if (IsTollFreeDate(day, holidays2013, includesDayBeforeHolidayRule, citySettings.JulyExempt)) return 0;
 
-        // Convert bands to an array for fast lookup
+
         var bands = (tollBands ?? Enumerable.Empty<TollBand>()).ToArray();
 
-        // Single-charge rule over rolling 60-minute windows:
-        // We walk passes, grouping consecutive ones within the window; for each group we take the MAX fee.
         var windowMinutes = citySettings.SingleChargeWindowMinutes;
         decimal total = 0;
 
@@ -37,24 +35,19 @@ public sealed class GothenburgTaxCalculator : ITaxCalculator
 
             if (diffMinutes <= windowMinutes)
             {
-                // same window → keep the highest fee
                 if (fee > windowMax) windowMax = fee;
             }
             else
             {
-                // close previous window
                 total += windowMax;
 
-                // start new window
                 windowStart = current;
                 windowMax = fee;
             }
         }
 
-        // close last window
         total += windowMax;
 
-        // Daily cap
         if (total > citySettings.DailyCap) total = citySettings.DailyCap;
 
         return total;

@@ -3,7 +3,7 @@ public sealed class CitySettings
     public string CityCode { get; set; }
     public decimal DailyCap { get; set; }                  
     public int SingleChargeWindowMinutes { get; set; }  
-    public bool JulyExempt { get; }              
+    public bool JulyExempt { get; set; }              
     public IReadOnlySet<VehicleType> ExemptVehicles { get; set; }
 
 
