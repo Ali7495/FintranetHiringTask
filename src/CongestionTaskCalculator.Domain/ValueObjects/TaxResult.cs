@@ -1,0 +1,1 @@
+public sealed record TaxResult(decimal Total, bool Capped, IReadOnlyList<TaxWindow> Windows);

@@ -1,4 +1,5 @@
 
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddValidatorsFromAssemblyContaining<CalculateTaxRequestValidator>();
 builder.Services.Configure<TaxOptions>(builder.Configuration.GetSection("TaxOption"));
 
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -34,6 +36,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
 #region minimal Apis
 
 app.MapPost("/tax/calculate", async (
@@ -47,22 +51,22 @@ app.MapPost("/tax/calculate", async (
     var rules = await rulesProvider.GetRulesAsync(cityCode, cancellationToken);
     if (rules is null) return Results.NotFound($"City '{cityCode}' not found.");
 
-
     if (!Enum.TryParse<VehicleType>(request.VehicleType, true, out var vehicleType))
         return Results.BadRequest("Unknown vehicle type.");
 
+    TaxResult result = taxCalculator.CalculateDailyTax(vehicleType, request.DateTimes, rules.City, rules.TollBands, rules.Holidays);
 
-    var total = taxCalculator.CalculateDailyTax(
-        vehicleType,
-        request.DateTimes ?? Array.Empty<DateTime>(),
-        rules.City,
-        rules.TollBands,
-        rules.Holidays);
-
-    return Results.Ok(new { total, capped = total >= rules.City.DailyCap });
+    return Results.Ok(result);
 })
 .WithName("CalculateTax")
 .Produces(StatusCodes.Status200OK);
+
+app.MapGet("/rules/{city}", async (string city, IRulesProvider rulesProvider) =>
+{
+    var rules = await rulesProvider.GetRulesAsync(city);
+    return rules is null ? Results.NotFound() : Results.Ok(rules);
+})
+.WithName("GetRules");
 
 app.MapGet("/", () => Results.Ok("API is OK. Use /swagger"));
 

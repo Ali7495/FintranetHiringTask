@@ -4,6 +4,11 @@
 
 public interface ITaxCalculator
 {
-    decimal CalculateDailyTax(VehicleType vehicleType, IEnumerable<DateTime> passes, CitySettings citySettings,
-    IEnumerable<TollBand> tollBands, ISet<DateOnly> holidays2013, bool includesDayBeforeHolidayRule = true);
+      TaxResult CalculateDailyTax(
+        VehicleType vehicleType,
+        IEnumerable<DateTime> passes,
+        CitySettings city,
+        IEnumerable<TollBand> tollBands,
+        ISet<DateOnly> holidays2013,
+        bool includeDayBeforeHolidayRule = true);
 }

@@ -1,0 +1,1 @@
+public sealed record TaxWindow(DateTime FromTime, DateTime ToTime, decimal AppliedFee);
